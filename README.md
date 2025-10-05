@@ -14,7 +14,7 @@
 
 ### Clone Repository
 ```bash
-git clone https://github.com/PhuNguyenPT/ur10e_rg2.git
+git clone https://github.com/HuynhKhoa1601/ur10e-rg2-unity-simulation.git
 ```
 
 ## Open Project in Unity

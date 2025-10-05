@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur10e_rg2">
+    <xacro:include filename="$(find ur_description)/urdf/inc/ur10e_macro.xacro" />
+    <xacro:include filename="$(find onrobot_rg_description)/urdf/onrobot_rg2_model_macro.xacro" />
+    <xacro:macro name="ur10e_with_rg2" params="prefix">
+        <xacro:ur10e_robot prefix="${prefix}robot_" />
+        <xacro:onrobot_rg2 prefix="${prefix}gripper_" />
+        <joint name="${prefix}tool0-${prefix}onrobot_rg2_base_link" type="fixed">
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <parent link="${prefix}robot_tool0" />
+            <child link="${prefix}gripper_onrobot_rg2_base_link" />
+        </joint>
+
+        <link name="world" />
+        <joint name="world_joint" type="fixed">
+            <parent link="world" />
+            <child link="${prefix}robot_base_link" />
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+        </joint>
+
+    </xacro:macro>
+    <xacro:ur10e_with_rg2 prefix=""/>
+</robot>

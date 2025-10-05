@@ -1,0 +1,189 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 668,
+      "type": "VEC3",
+      "max": [
+        0.24499998986721039,
+        0.15999999642372131,
+        0.37999999523162842
+      ],
+      "min": [
+        -0.24499998986721039,
+        -0.16025596857070923,
+        0.0
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 668,
+      "type": "VEC3",
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ]
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 668,
+      "type": "VEC4",
+      "max": [
+        1.0,
+        1.0,
+        0.9999997615814209,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -0.99999988079071045,
+        -1.0
+      ]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 668,
+      "type": "VEC2",
+      "max": [
+        0.989072859287262,
+        0.99799996614456177
+      ],
+      "min": [
+        0.0020000000949949026,
+        0.0020000000949949026
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5125,
+      "count": 1170,
+      "type": "SCALAR",
+      "max": [
+        667.0
+      ],
+      "min": [
+        0.0
+      ]
+    }
+  ],
+  "asset": {
+    "generator": "UnityGLTF (2021.3.12f1c2)",
+    "version": "2.0"
+  },
+  "buffers": [
+    {
+      "uri": "Unity2Skfb.bin",
+      "byteLength": 36744
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 8016
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 8016,
+      "byteLength": 8016
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 16032,
+      "byteLength": 10688
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 26720,
+      "byteLength": 5344
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 32064,
+      "byteLength": 4680
+    }
+  ],
+  "images": [
+    {
+      "uri": "24688_2-makerbot-3台.jpg",
+      "name": "2-makerbot-3台"
+    }
+  ],
+  "materials": [
+    {
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.85857865214347839
+      },
+      "name": "Material #0"
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TANGENT": 2,
+            "TEXCOORD_0": 3
+          },
+          "indices": 4,
+          "material": 0
+        }
+      ],
+      "name": "2-makerbot-3台"
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "rotation": [
+        0.0,
+        0.7071068,
+        -0.7071068,
+        0.0
+      ],
+      "scale": [
+        1.00000048,
+        1.00000024,
+        1.00000024
+      ],
+      "name": "2-makerbot-3台"
+    }
+  ],
+  "samplers": [
+    {
+      "minFilter": 9729
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ],
+      "name": "Unity2Skfb"
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0,
+      "name": "2-makerbot-3台"
+    }
+  ]
+}

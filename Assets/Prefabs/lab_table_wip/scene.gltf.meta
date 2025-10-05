@@ -1,0 +1,58 @@
+fileFormatVersion: 2
+guid: bb8987e2cf1fc8c9ebe4f894ec44fc26
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 715df9372183c47e389bb6e19fbc3b52, type: 3}
+  editorImportSettings:
+    generateSecondaryUVSet: 0
+  importSettings:
+    nodeNameMethod: 1
+    animationMethod: 2
+    generateMipMaps: 1
+    texturesReadable: 0
+    defaultMinFilterMode: 9729
+    defaultMagFilterMode: 9729
+    anisotropicFilterLevel: 1
+  instantiationSettings:
+    mask: -1
+    layer: 0
+    skinUpdateWhenOffscreen: 1
+    lightIntensityFactor: 1
+    sceneObjectCreation: 2
+  assetDependencies:
+  - type: 0
+    originalUri: Assets/lab_table_wip/scene.bin
+    assetPath: Assets/lab_table_wip/scene.bin
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/blinn2_baseColor.jpeg
+    assetPath: Assets/lab_table_wip/textures/blinn2_baseColor.jpeg
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/blinn2_metallicRoughness.png
+    assetPath: Assets/lab_table_wip/textures/blinn2_metallicRoughness.png
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/blinn2_normal.jpeg
+    assetPath: Assets/lab_table_wip/textures/blinn2_normal.jpeg
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/lambert1_baseColor.jpeg
+    assetPath: Assets/lab_table_wip/textures/lambert1_baseColor.jpeg
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/lambert1_metallicRoughness.png
+    assetPath: Assets/lab_table_wip/textures/lambert1_metallicRoughness.png
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/lambert1_normal.jpeg
+    assetPath: Assets/lab_table_wip/textures/lambert1_normal.jpeg
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/blinn1_baseColor.jpeg
+    assetPath: Assets/lab_table_wip/textures/blinn1_baseColor.jpeg
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/blinn1_metallicRoughness.png
+    assetPath: Assets/lab_table_wip/textures/blinn1_metallicRoughness.png
+  - type: 1
+    originalUri: Assets/lab_table_wip/textures/blinn1_normal.jpeg
+    assetPath: Assets/lab_table_wip/textures/blinn1_normal.jpeg
+  reportItems: []

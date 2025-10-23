@@ -13,35 +13,40 @@ namespace RosMessageTypes.Ur10eRg2Moveit
         public const string k_RosMessageName = "ur10e_rg2_moveit/PoseEstimationService";
         public override string RosMessageName => k_RosMessageName;
 
-        //  Response
-        public Geometry.PoseMsg estimated_pose;
+        public bool success;
+        public string message;
 
         public PoseEstimationServiceResponse()
         {
-            this.estimated_pose = new Geometry.PoseMsg();
+            this.success = false;
+            this.message = "";
         }
 
-        public PoseEstimationServiceResponse(Geometry.PoseMsg estimated_pose)
+        public PoseEstimationServiceResponse(bool success, string message)
         {
-            this.estimated_pose = estimated_pose;
+            this.success = success;
+            this.message = message;
         }
 
         public static PoseEstimationServiceResponse Deserialize(MessageDeserializer deserializer) => new PoseEstimationServiceResponse(deserializer);
 
         private PoseEstimationServiceResponse(MessageDeserializer deserializer)
         {
-            this.estimated_pose = Geometry.PoseMsg.Deserialize(deserializer);
+            deserializer.Read(out this.success);
+            deserializer.Read(out this.message);
         }
 
         public override void SerializeTo(MessageSerializer serializer)
         {
-            serializer.Write(this.estimated_pose);
+            serializer.Write(this.success);
+            serializer.Write(this.message);
         }
 
         public override string ToString()
         {
             return "PoseEstimationServiceResponse: " +
-            "\nestimated_pose: " + estimated_pose.ToString();
+            "\nsuccess: " + success.ToString() +
+            "\nmessage: " + message.ToString();
         }
 
 #if UNITY_EDITOR

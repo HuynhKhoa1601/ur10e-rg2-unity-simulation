@@ -24,7 +24,7 @@ public class TrajectoryPlanner : MonoBehaviour
 
     // Variables required for ROS communication
     [SerializeField]
-    string m_RosServiceName = "pose_estimation_srv";
+    string m_RosServiceName = "mover_service";
     public string RosServiceName { get => m_RosServiceName; set => m_RosServiceName = value; }
 
     [SerializeField]
@@ -69,7 +69,7 @@ public class TrajectoryPlanner : MonoBehaviour
         m_Ros = ROSConnection.GetOrCreateInstance();
         m_Ros.RegisterRosService<MoverServiceRequest, MoverServiceResponse>(m_RosServiceName);
         Debug.Log($"ROS Service Name: {m_RosServiceName}");
-        m_Ros.RegisterRosService<PoseEstimationServiceRequest, PoseEstimationServiceResponse>("pose_estimation_srv");
+        //m_Ros.RegisterRosService<PoseEstimationServiceRequest, PoseEstimationServiceResponse>("pose_estimation_srv");
 
 
         Debug.Log("Finding robot joint articulation bodies...");
@@ -314,21 +314,21 @@ public class TrajectoryPlanner : MonoBehaviour
     ///     Capture the main camera's render texture and convert to bytes.
     /// </summary>
     /// <returns>imageBytes</returns>
-    private byte[] CaptureScreenshot()
-    {
-        Camera.main.targetTexture = renderTexture;
-        RenderTexture currentRT = RenderTexture.active;
-        RenderTexture.active = renderTexture;
-        Camera.main.Render();
-        Texture2D mainCameraTexture = new Texture2D(renderTexture.width, renderTexture.height);
-        mainCameraTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-        mainCameraTexture.Apply();
-        RenderTexture.active = currentRT;
-        // Get the raw byte info from the screenshot
-        byte[] imageBytes = mainCameraTexture.GetRawTextureData();
-        Camera.main.targetTexture = null;
-        return imageBytes;
-    }
+    //private byte[] CaptureScreenshot()
+    //{
+    //    Camera.main.targetTexture = renderTexture;
+    //    RenderTexture currentRT = RenderTexture.active;
+    //    RenderTexture.active = renderTexture;
+    //    Camera.main.Render();
+    //    Texture2D mainCameraTexture = new Texture2D(renderTexture.width, renderTexture.height);
+    //    mainCameraTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+    //    mainCameraTexture.Apply();
+    //    RenderTexture.active = currentRT;
+    //    // Get the raw byte info from the screenshot
+    //    byte[] imageBytes = mainCameraTexture.GetRawTextureData();
+    //    Camera.main.targetTexture = null;
+    //    return imageBytes;
+    //}
 
     /// <summary>
     ///     Create a new PoseEstimationServiceRequest with the captured screenshot as bytes and instantiates 
@@ -338,17 +338,17 @@ public class TrajectoryPlanner : MonoBehaviour
     ///     PoseEstimationServiceResponse.
     /// </summary>
     /// <param name="imageData"></param>
-    private void InvokePoseEstimationService(byte[] imageData)
-    {
-        uint imageHeight = (uint)renderTexture.height;
-        uint imageWidth = (uint)renderTexture.width;
+    //private void InvokePoseEstimationService(byte[] imageData)
+    //{   
+    //    uint imageHeight = (uint)renderTexture.height;
+    //    uint imageWidth = (uint)renderTexture.width;
 
-        RosMessageTypes.Sensor.ImageMsg rosImage = new RosMessageTypes.Sensor.ImageMsg(new RosMessageTypes.Std.HeaderMsg(), imageWidth, imageHeight, "RGBA", isBigEndian, step, imageData);
-        PoseEstimationServiceRequest poseServiceRequest = new PoseEstimationServiceRequest(rosImage);
+    //    RosMessageTypes.Sensor.ImageMsg rosImage = new RosMessageTypes.Sensor.ImageMsg(new RosMessageTypes.Std.HeaderMsg(), imageWidth, imageHeight, "RGBA", isBigEndian, step, imageData);
+    //    PoseEstimationServiceRequest poseServiceRequest = new PoseEstimationServiceRequest(rosImage);
 
-        m_Ros.SendServiceMessage<PoseEstimationServiceResponse>("pose_estimation_srv", poseServiceRequest, PoseEstimationCallback);
+    //    m_Ros.SendServiceMessage<PoseEstimationServiceResponse>("pose_estimation_srv", poseServiceRequest, PoseEstimationCallback);
 
-    }
+    //}
 
 
     /// <summary>
@@ -370,39 +370,83 @@ public class TrajectoryPlanner : MonoBehaviour
     //    byte[] rawImageData = CaptureScreenshot();
     //    InvokePoseEstimationService(rawImageData);
     //}
+    //public void PoseEstimation()
+    //{
+    //    Debug.Log("Starting PoseEstimation...");
+
+    //    Debug.Log("Capturing screenshot...");
+    //    byte[] rawImageData = CaptureScreenshot();
+
+    //    InvokePoseEstimationService(rawImageData);
+    //}
+
     public void PoseEstimation()
     {
-        Debug.Log("Starting PoseEstimation...");
+        Debug.Log("Sending pick/place poses to ROS...");
 
-        Debug.Log("Capturing screenshot...");
-        byte[] rawImageData = CaptureScreenshot();
+        MoverServiceRequest request = new MoverServiceRequest();
 
-        InvokePoseEstimationService(rawImageData);
+        // Approach above the cube first (safe height)
+        float approachHeight = 0f;  // 5 cm above the cube
+        Vector3 pickApproachPos = Target.transform.position + new Vector3(0, approachHeight, 0);
+
+        // Final pick position (slightly lower for gripping)
+        float pickDepth = -0.08f; // move down relative to cube for gripping
+        Vector3 pickFinalPos = Target.transform.position + new Vector3(0, pickDepth, 0);
+
+        // Pick Pose: approach first (you can send this as trajectory or just final pick)
+        Quaternion gripperDown = Quaternion.Euler(180, Target.transform.eulerAngles.y, 0);
+
+        // Here we use final pick position for ROS
+        request.pick_pose = new PoseMsg
+        {
+            position = pickFinalPos.To<FLU>(),
+            orientation = gripperDown.To<FLU>()
+        };
+
+        // Place Pose: dynamic position, gripper orientation can stay flat
+        Quaternion placeOrientation = Quaternion.Euler(180, TargetPlacement.transform.eulerAngles.y, 0);
+        request.place_pose = new PoseMsg
+        {
+            position = TargetPlacement.transform.position.To<FLU>(),
+            orientation = placeOrientation.To<FLU>()
+        };
+
+        // Log positions and orientations
+        Debug.Log($"Pick Approach Position (above cube): {pickApproachPos}");
+        Debug.Log($"Pick Final Position: {pickFinalPos}");
+        Debug.Log($"Pick Rotation: {gripperDown.eulerAngles}");
+        Debug.Log($"Place Position: {TargetPlacement.transform.position}");
+        Debug.Log($"Place Rotation: {placeOrientation.eulerAngles}");
+
+        // Send request to ROS
+        m_Ros.SendServiceMessage<MoverServiceResponse>("mover_service", request, PoseEstimationCallback);
     }
 
 
-    void PoseEstimationCallback(PoseEstimationServiceResponse response)
+
+
+    void PoseEstimationCallback(MoverServiceResponse response)
     {
-        Debug.Log(response);
-
-        if (response != null)
+        if (response == null)
         {
-            Debug.Log("estimate motion");
-            // The position output by the model is the position of the cube relative to the camera so we need to extract its global position 
-            var estimatedPosition = Camera.main.transform.TransformPoint(response.estimated_pose.position.From<RUF>());
-            var estimatedRotation = Camera.main.transform.rotation * response.estimated_pose.orientation.From<RUF>();
-
-            PublishJoints(estimatedPosition, estimatedRotation);
-
-            EstimatedPos.text = estimatedPosition.ToString();
-            EstimatedRot.text = estimatedRotation.eulerAngles.ToString();
+            Debug.LogWarning("Mover service returned a null response!");
+            return;
         }
-        else
+
+        Debug.Log("Mover service responded successfully.");
+
+        if (response.trajectories == null || response.trajectories.Length == 0)
         {
-            InitializeButton.interactable = true;
-            RandomizeButton.interactable = true;
+            Debug.LogWarning("No trajectories received in response.");
+            return;
         }
+
+        Debug.Log($"Received {response.trajectories.Length} trajectory(ies).");
+
+        TrajectoryResponse(response);
     }
+
 
     public void PublishJoints(Vector3 targetPos, Quaternion targetRot)
     {

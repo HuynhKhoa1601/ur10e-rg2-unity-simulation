@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Linq;
 using RosMessageTypes.Geometry;
@@ -12,15 +12,18 @@ using TMPro;
 
 public class TrajectoryPlanner : MonoBehaviour
 {
+    public Rigidbody cubeRb;
     // Hardcoded variables
     const int k_NumRobotJoints = 6;
     const float k_JointAssignmentWait = 0.1f;
     const float k_PoseAssignmentWait = 0.5f;
     private const int isBigEndian = 0;
     private const int step = 4;
-    private readonly Vector3 pickPoseOffset = new Vector3(0, 0.255f, 0);
+    private readonly Vector3 pickPoseOffset = new Vector3(0, 0, 0.2f);
     private readonly Vector3 placePoseOffset = new Vector3(0, 0.275f, 0);
     private readonly Quaternion pickOrientation = new Quaternion(-0.5f, -0.5f, 0.5f, -0.5f);
+
+
 
     // Variables required for ROS communication
     [SerializeField]
@@ -36,6 +39,9 @@ public class TrajectoryPlanner : MonoBehaviour
     [SerializeField]
     GameObject m_TargetPlacement;
     public GameObject TargetPlacement { get => m_TargetPlacement; set => m_TargetPlacement = value; }
+
+    public Transform RobotBase;
+   
 
     // Assures that the gripper is always positioned to the side of the m_Target cube before grasping.
     readonly Quaternion m_PickOrientation = Quaternion.Euler(90, 90, 0);
@@ -154,7 +160,7 @@ public class TrajectoryPlanner : MonoBehaviour
         for (var i = 0; i < k_NumRobotJoints; i++)
         {
             joints.joints[i] = m_JointArticulationBodies[i].jointPosition[0];
-            Debug.Log($"Joint {i} position: {joints.joints[i]}");
+            //Debug.Log($"Joint {i} position: {joints.joints[i]}");
         }
 
         return joints;
@@ -209,6 +215,12 @@ public class TrajectoryPlanner : MonoBehaviour
 
     void TrajectoryResponse(MoverServiceResponse response)
     {
+        Debug.Log($"Response trajectories.Length = {response.trajectories.Length}");
+        for (int i = 0; i < response.trajectories.Length; i++)
+        {
+            Debug.Log($"Trajectory {i} points = {response.trajectories[i].joint_trajectory.points.Length}");
+        }
+
         if (response.trajectories.Length > 0)
         {
             Debug.Log("Trajectory returned.");
@@ -239,20 +251,18 @@ public class TrajectoryPlanner : MonoBehaviour
             // For every trajectory plan returned
             for (var poseIndex = 0; poseIndex < response.trajectories.Length; poseIndex++)
             {
-                Debug.Log($"Executing trajectory plan {poseIndex}");
+                var trajectoryPoints = response.trajectories[poseIndex].joint_trajectory.points;
+
+                Debug.Log($"Executing trajectory {poseIndex} of {response.trajectories.Length}");
 
                 // For every robot pose in trajectory plan
-                foreach (var t in response.trajectories[poseIndex].joint_trajectory.points)
+                for (int pointIndex = 0; pointIndex < trajectoryPoints.Length; pointIndex++)
                 {
+                    var t = trajectoryPoints[pointIndex];
                     var jointPositions = t.positions;
-                    // Log the original joint positions in radians
-                    Debug.Log($"Joint positions (radians): {string.Join(", ", jointPositions)}");
 
                     // Convert joint positions from radians to degrees
                     var result = jointPositions.Select(r => (float)r * Mathf.Rad2Deg).ToArray();
-
-                    // Log the converted joint positions in degrees
-                    Debug.Log($"Joint positions (degrees): {string.Join(", ", result)}");
 
                     // Set the joint values for every joint
                     for (var joint = 0; joint < m_JointArticulationBodies.Length; joint++)
@@ -264,12 +274,25 @@ public class TrajectoryPlanner : MonoBehaviour
 
                     // Wait for robot to achieve pose for all joint assignments
                     yield return new WaitForSeconds(k_JointAssignmentWait);
-                }
 
-                // Close the gripper if completed executing the trajectory for the Grasp pose
-                if (poseIndex == (int)Poses.Grasp)
-                {
-                    CloseGripper();
+                    // Close the gripper at the last point of the trajectory
+                    if (pointIndex == trajectoryPoints.Length - 1)
+                    {
+                        Debug.Log("[Grasp] Closing gripper and attaching cube...");
+                        CloseGripper();
+
+                        // Attach cube to gripper
+                        Target.transform.SetParent(m_RightOuterGripper.transform, true);
+                    
+
+
+                        // Disable cube physics while held
+                        if (cubeRb != null)
+                        {
+                            cubeRb.isKinematic = true;
+                            cubeRb.useGravity = false;
+                        }
+                    }
                 }
 
                 // Wait for the robot to achieve the final pose from joint assignment
@@ -279,7 +302,12 @@ public class TrajectoryPlanner : MonoBehaviour
             // All trajectories have been executed, open the gripper to place the target cube
             OpenGripper();
         }
+        else
+        {
+            Debug.LogError("No trajectories returned from MoverService.");
+        }
     }
+
 
     void CloseGripper()
     {
@@ -287,8 +315,10 @@ public class TrajectoryPlanner : MonoBehaviour
         var leftOuterDrive = m_LeftOuterGripper.xDrive;
         var rightOuterDrive = m_RightOuterGripper.xDrive;
 
-        leftOuterDrive.target = Mathf.Clamp(-30.0f, leftOuterDrive.lowerLimit, leftOuterDrive.upperLimit);
-        rightOuterDrive.target = Mathf.Clamp(-30.0f, rightOuterDrive.lowerLimit, rightOuterDrive.upperLimit);
+        var value = -45.0f;
+
+        leftOuterDrive.target = Mathf.Clamp(value, leftOuterDrive.lowerLimit, leftOuterDrive.upperLimit);
+        rightOuterDrive.target = Mathf.Clamp(value, rightOuterDrive.lowerLimit, rightOuterDrive.upperLimit);
 
         m_LeftOuterGripper.xDrive = leftOuterDrive;
         m_RightOuterGripper.xDrive = rightOuterDrive;
@@ -305,126 +335,69 @@ public class TrajectoryPlanner : MonoBehaviour
 
         m_LeftOuterGripper.xDrive = leftOuterDrive;
         m_RightOuterGripper.xDrive = rightOuterDrive;
-        Debug.Log("Opening gripper...");
+        if (Target != null)
+        {
+            Target.transform.SetParent(null, true);
+            Debug.Log("Released target from gripper.");
+        }
     }
-
-
-
-    /// <summary>
-    ///     Capture the main camera's render texture and convert to bytes.
-    /// </summary>
-    /// <returns>imageBytes</returns>
-    //private byte[] CaptureScreenshot()
-    //{
-    //    Camera.main.targetTexture = renderTexture;
-    //    RenderTexture currentRT = RenderTexture.active;
-    //    RenderTexture.active = renderTexture;
-    //    Camera.main.Render();
-    //    Texture2D mainCameraTexture = new Texture2D(renderTexture.width, renderTexture.height);
-    //    mainCameraTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-    //    mainCameraTexture.Apply();
-    //    RenderTexture.active = currentRT;
-    //    // Get the raw byte info from the screenshot
-    //    byte[] imageBytes = mainCameraTexture.GetRawTextureData();
-    //    Camera.main.targetTexture = null;
-    //    return imageBytes;
-    //}
-
-    /// <summary>
-    ///     Create a new PoseEstimationServiceRequest with the captured screenshot as bytes and instantiates 
-    ///     a sensor_msgs/image.
-    ///
-    ///     Call the PoseEstimationService using the ROSConnection and calls PoseEstimationCallback on the 
-    ///     PoseEstimationServiceResponse.
-    /// </summary>
-    /// <param name="imageData"></param>
-    //private void InvokePoseEstimationService(byte[] imageData)
-    //{   
-    //    uint imageHeight = (uint)renderTexture.height;
-    //    uint imageWidth = (uint)renderTexture.width;
-
-    //    RosMessageTypes.Sensor.ImageMsg rosImage = new RosMessageTypes.Sensor.ImageMsg(new RosMessageTypes.Std.HeaderMsg(), imageWidth, imageHeight, "RGBA", isBigEndian, step, imageData);
-    //    PoseEstimationServiceRequest poseServiceRequest = new PoseEstimationServiceRequest(rosImage);
-
-    //    m_Ros.SendServiceMessage<PoseEstimationServiceResponse>("pose_estimation_srv", poseServiceRequest, PoseEstimationCallback);
-
-    //}
-
-
-    /// <summary>
-    ///     Button callback for the Pose Estimation
-    /// </summary>
-    //public void PoseEstimation()
-    //{
-    //    Debug.Log("Capturing screenshot...");
-
-    //    //InitializeButton.interactable = false;
-    //    //RandomizeButton.interactable = false;
-    //    ServiceButton.interactable = false;
-    //    ActualPos.text = target.transform.position.ToString();
-    //    ActualRot.text = target.transform.eulerAngles.ToString();
-    //    EstimatedPos.text = "-";
-    //    EstimatedRot.text = "-";
-
-    //    // Capture the screenshot and pass it to the pose estimation service
-    //    byte[] rawImageData = CaptureScreenshot();
-    //    InvokePoseEstimationService(rawImageData);
-    //}
-    //public void PoseEstimation()
-    //{
-    //    Debug.Log("Starting PoseEstimation...");
-
-    //    Debug.Log("Capturing screenshot...");
-    //    byte[] rawImageData = CaptureScreenshot();
-
-    //    InvokePoseEstimationService(rawImageData);
-    //}
 
     public void PoseEstimation()
     {
-        Debug.Log("Sending pick/place poses to ROS...");
-
         MoverServiceRequest request = new MoverServiceRequest();
+        request.joints_input = CurrentJointConfig();
 
-        // Approach above the cube first (safe height)
-        float approachHeight = 0f;  // 5 cm above the cube
-        Vector3 pickApproachPos = Target.transform.position + new Vector3(0, approachHeight, 0);
+        // Step 1: get cube position relative to robot base
+        Vector3 cubePosLocal = RobotBase.InverseTransformPoint(Target.transform.position);
 
-        // Final pick position (slightly lower for gripping)
-        float pickDepth = -0.08f; // move down relative to cube for gripping
-        Vector3 pickFinalPos = Target.transform.position + new Vector3(0, pickDepth, 0);
+        // Step 2: convert Unity (RUF) → ROS (FLU)
+        Vector3 cubePosFLU = new Vector3(
+            cubePosLocal.z,
+            -cubePosLocal.x,
+            cubePosLocal.y
+        );
 
-        // Pick Pose: approach first (you can send this as trajectory or just final pick)
-        Quaternion gripperDown = Quaternion.Euler(180, Target.transform.eulerAngles.y, 0);
+        // Step 3: add 20 cm upward offset in ROS frame
+        Vector3 pickPoseFLU = cubePosFLU + new Vector3(0, 0, 0.2f);
 
-        // Here we use final pick position for ROS
+        // Step 4: convert to PointMsg
+        PointMsg graspPoint = new PointMsg(pickPoseFLU.x, pickPoseFLU.y, pickPoseFLU.z);
+
         request.pick_pose = new PoseMsg
         {
-            position = pickFinalPos.To<FLU>(),
-            orientation = gripperDown.To<FLU>()
+            position = graspPoint,
+            orientation = Quaternion.Euler(180, Target.transform.eulerAngles.y, 0).To<FLU>()
         };
 
-        // Place Pose: dynamic position, gripper orientation can stay flat
-        Quaternion placeOrientation = Quaternion.Euler(180, TargetPlacement.transform.eulerAngles.y, 0);
+        Debug.Log($"Cube (local): {cubePosLocal}");
+        Debug.Log($"Cube (FLU): {cubePosFLU}");
+        Debug.Log($"Pick Pose Position: {request.pick_pose.position}");
+
+        // --- Place Pose ---
+        Vector3 placePosLocal = RobotBase.InverseTransformPoint(TargetPlacement.transform.position);
+        Debug.Log($"Place Pos Local: {request.pick_pose.position}");
+
+        Vector3 placePosFLU = new Vector3(
+            placePosLocal.z,
+            -placePosLocal.x,
+            placePosLocal.y
+        );
+
+        // Optional: add an upward offset if needed
+        Vector3 placePoseFLU = placePosFLU + new Vector3(0, 0, 0.2f);
+
+        PointMsg placePoint = new PointMsg(placePoseFLU.x, placePoseFLU.y, placePoseFLU.z);
+
         request.place_pose = new PoseMsg
         {
-            position = TargetPlacement.transform.position.To<FLU>(),
-            orientation = placeOrientation.To<FLU>()
+            position = placePoint,
+            orientation = Quaternion.Euler(170, 0, 0).To<FLU>()
         };
 
-        // Log positions and orientations
-        Debug.Log($"Pick Approach Position (above cube): {pickApproachPos}");
-        Debug.Log($"Pick Final Position: {pickFinalPos}");
-        Debug.Log($"Pick Rotation: {gripperDown.eulerAngles}");
-        Debug.Log($"Place Position: {TargetPlacement.transform.position}");
-        Debug.Log($"Place Rotation: {placeOrientation.eulerAngles}");
+        Debug.Log($"Place Pose - Placement (local): {placePosLocal}, FLU: {placePosFLU}, ROS Position: {request.place_pose.position}");
 
-        // Send request to ROS
-        m_Ros.SendServiceMessage<MoverServiceResponse>("mover_service", request, PoseEstimationCallback);
+        m_Ros.SendServiceMessage<MoverServiceResponse>(m_RosServiceName, request, TrajectoryResponse);
     }
-
-
-
 
     void PoseEstimationCallback(MoverServiceResponse response)
     {

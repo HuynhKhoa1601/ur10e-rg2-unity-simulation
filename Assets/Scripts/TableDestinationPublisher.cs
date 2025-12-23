@@ -24,6 +24,9 @@ namespace Assets.Scripts
         [SerializeField]
         GameObject m_Table;
 
+        [SerializeField]
+        GameObject MakerBot;
+
         // ROS Connector
         ROSConnection m_Ros;
 
@@ -31,7 +34,10 @@ namespace Assets.Scripts
         GameObject RobotBase;
 
         [SerializeField]
-        GameObject m_Cube;
+        GameObject ObstacleCube;
+
+        [SerializeField]
+        Vector3 makerBotRotationCorrection = new Vector3(90, 0, 0);
 
         void Start()
         {
@@ -64,6 +70,17 @@ namespace Assets.Scripts
 
             Debug.Log($"Table Coordinates: {tablePose.position.x}, {tablePose.position.y}, {tablePose.position.z}");
 
+            MeshFilter tableMesh = m_Table.GetComponent<MeshFilter>();
+
+            Vector3 tableWorldSize = Vector3.Scale(
+                tableMesh.sharedMesh.bounds.size,
+                m_Table.transform.lossyScale
+            );
+
+            double sizeX = tableWorldSize.z; // forward
+            double sizeY = tableWorldSize.x; // left
+            double sizeZ = tableWorldSize.y; // up
+
             // Create collision object
             var collisionObject = new CollisionObjectMsg
             {
@@ -73,11 +90,16 @@ namespace Assets.Scripts
                 primitive_poses = new PoseMsg[] { tablePoseStamped.pose }, // only the pose part
                 primitives = new SolidPrimitiveMsg[]
                 {
-            new SolidPrimitiveMsg
-            {
-                type = SolidPrimitiveMsg.BOX,
-                dimensions = new double[] { 5.0, 5.0, 0.64 }
-            }
+                    new SolidPrimitiveMsg
+                    {
+                        type = SolidPrimitiveMsg.BOX,
+                        dimensions = new double[]
+                        {
+                             sizeX,
+                             sizeY,
+                             sizeZ
+                        }
+                    }
                 }
             };
 
@@ -89,15 +111,15 @@ namespace Assets.Scripts
 
             // Get cube world size
             Vector3 cubeWorldSize = Vector3.Scale(
-                m_Cube.GetComponent<MeshFilter>().sharedMesh.bounds.size,
-                m_Cube.transform.lossyScale
+                ObstacleCube.GetComponent<MeshFilter>().sharedMesh.bounds.size,
+                ObstacleCube.transform.lossyScale
             );
 
             // Small safety margin above table
             float safetyMargin = 0.01f; // 1 cm
 
             // Convert Unity position to local relative to robot base
-            Vector3 cubeLocal = RobotBase.transform.InverseTransformPoint(m_Cube.transform.position);
+            Vector3 cubeLocal = RobotBase.transform.InverseTransformPoint(ObstacleCube.transform.position);
 
             // Map Unity axes (x:right, y:up, z:forward) to ROS FLU (x:forward, y:left, z:up)
             Vector3 cubeFLU = new Vector3(
@@ -128,18 +150,122 @@ namespace Assets.Scripts
             };
 
             //// Create CollisionObjectMsg
-            //var cube = new CollisionObjectMsg
-            //{
-            //    header = new HeaderMsg { frame_id = "robot_base_link" },
-            //    id = "cube_obstacle",
-            //    operation = CollisionObjectMsg.ADD,
-            //    primitive_poses = new PoseMsg[] { cubePose },
-            //    primitives = new SolidPrimitiveMsg[] { cubePrimitive }
-            //};
+            var cube = new CollisionObjectMsg
+            {
+                header = new HeaderMsg { frame_id = "robot_base_link" },
+                id = "cube_obstacle",
+                operation = CollisionObjectMsg.ADD,
+                primitive_poses = new PoseMsg[] { cubePose },
+                primitives = new SolidPrimitiveMsg[] { cubePrimitive }
+            };
 
-            //// Publish cube
-            //m_Ros.Publish(m_TopicName, cube);
-            //Debug.Log("Cube obstacle published (aligned with table)!");
+            ////// Publish cube
+            m_Ros.Publish(m_TopicName, cube);
+            Debug.Log("Cube obstacle published (aligned with table)!");
+
+
+
+            PublishMakerBot();
+
         }
+
+
+        void PublishMakerBot()
+        {
+            MeshFilter meshFilter = MakerBot.GetComponent<MeshFilter>();
+            if (meshFilter == null)
+            {
+                Debug.LogError("MakerBot has no MeshFilter!");
+                return;
+            }
+
+            Mesh mesh = meshFilter.sharedMesh;
+
+            // ---------- Create shape_msgs/Mesh ----------
+            List<PointMsg> vertices = new List<PointMsg>();
+            Vector3 scale = MakerBot.transform.lossyScale; // Get Unity world scale
+
+            foreach (Vector3 v in mesh.vertices)
+            {
+                // Apply scale
+                Vector3 scaledVertex = Vector3.Scale(v, scale);
+                scaledVertex.x = -scaledVertex.x;
+                vertices.Add(new PointMsg(scaledVertex.x, scaledVertex.y, scaledVertex.z));
+            }
+
+            List<MeshTriangleMsg> triangles = new List<MeshTriangleMsg>();
+            int[] tris = mesh.triangles;
+            for (int i = 0; i < tris.Length; i += 3)
+            {
+                triangles.Add(new MeshTriangleMsg
+                {
+                    vertex_indices = new uint[]
+                    {
+                (uint)tris[i],
+                    (uint)tris[i + 2],
+                (uint)tris[i + 1]
+            
+                    }
+                });
+            }
+
+            MeshMsg meshMsg = new MeshMsg
+            {
+                vertices = vertices.ToArray(),
+                triangles = triangles.ToArray()
+            };
+
+            // ---------- POSITION (floor-safe) ----------
+            Vector3 makerLocal = RobotBase.transform.InverseTransformPoint(MakerBot.transform.position);
+
+            Vector3 makerFLU = new Vector3(
+                makerLocal.z,   // Unity forward → ROS X
+                -makerLocal.x,  // Unity right   → ROS Y
+                makerLocal.y    // Unity up      → ROS Z  (DO NOT TOUCH)
+            );
+
+            Quaternion makerRotLocal =
+    Quaternion.Inverse(RobotBase.transform.rotation) *
+    MakerBot.transform.rotation;
+
+            // Extract Unity yaw only (safe)
+            float unityYawDeg = makerRotLocal.eulerAngles.y;
+
+            // Convert Unity yaw → ROS yaw (Z axis)
+            Quaternion rosYaw =
+    Quaternion.AngleAxis(-(unityYawDeg + 180), -Vector3.forward);
+
+
+            PoseMsg makerPose = new PoseMsg
+            {
+                position = new PointMsg(makerFLU.x, makerFLU.y, makerFLU.z),
+                orientation = new QuaternionMsg(
+                    rosYaw.x,
+                    rosYaw.y,
+                    rosYaw.z,
+                    rosYaw.w
+                )
+            };
+
+            // ---------- Collision object ----------
+            CollisionObjectMsg makerBotObject = new CollisionObjectMsg
+            {
+                header = new HeaderMsg { frame_id = "robot_base_link" },
+                id = "makerbot",
+                operation = CollisionObjectMsg.ADD,
+                meshes = new MeshMsg[] { meshMsg },
+                mesh_poses = new PoseMsg[] { makerPose }
+            };
+
+            Debug.Log(
+    $"[UNITY] MakerBot local to robot (m): " +
+    $"x={makerLocal.z:F3}, y={-makerLocal.x:F3}, z={makerLocal.y:F3}"
+);
+
+
+            m_Ros.Publish(m_TopicName, makerBotObject);
+            Debug.Log("MakerBot collision mesh published (floor-safe, yaw-aligned)");
+        }
+
     }
 }

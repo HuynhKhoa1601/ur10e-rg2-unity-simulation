@@ -300,6 +300,14 @@ public class TrajectoryPlanner : MonoBehaviour
             }
 
             // All trajectories have been executed, open the gripper to place the target cube
+            Target.transform.SetParent(null, true);
+
+            if (cubeRb != null)
+            {
+                cubeRb.isKinematic = false;
+                cubeRb.useGravity = true;
+            }
+
             OpenGripper();
         }
         else
@@ -374,7 +382,12 @@ public class TrajectoryPlanner : MonoBehaviour
         Debug.Log($"Pick Pose Position: {request.pick_pose.position}");
 
         // --- Place Pose ---
-        Vector3 placePosLocal = RobotBase.InverseTransformPoint(TargetPlacement.transform.position);
+        // Safe height above placement
+        float placementSafeHeight = 0.05f; // 10 cm
+        Vector3 targetPlacementAbove = TargetPlacement.transform.position + new Vector3(0, placementSafeHeight, 0); // still Vector3
+
+        // Convert to local coordinates
+        Vector3 placePosLocal = RobotBase.InverseTransformPoint(targetPlacementAbove);
         Debug.Log($"Place Pos Local: {request.pick_pose.position}");
 
         Vector3 placePosFLU = new Vector3(
@@ -388,10 +401,13 @@ public class TrajectoryPlanner : MonoBehaviour
 
         PointMsg placePoint = new PointMsg(placePoseFLU.x, placePoseFLU.y, placePoseFLU.z);
 
+        float yaw = Target.transform.eulerAngles.y;
+
+
         request.place_pose = new PoseMsg
         {
             position = placePoint,
-            orientation = Quaternion.Euler(170, 0, 0).To<FLU>()
+            orientation = Quaternion.Euler(180, 0, 0).To<FLU>()
         };
 
         Debug.Log($"Place Pose - Placement (local): {placePosLocal}, FLU: {placePosFLU}, ROS Position: {request.place_pose.position}");

@@ -13,35 +13,40 @@ namespace RosMessageTypes.Ur10eRg2Moveit
         public const string k_RosMessageName = "ur10e_rg2_moveit/PoseEstimationService";
         public override string RosMessageName => k_RosMessageName;
 
-        //  Request
-        public Sensor.ImageMsg image;
+        public Geometry.PoseMsg pick_pose;
+        public Geometry.PoseMsg place_pose;
 
         public PoseEstimationServiceRequest()
         {
-            this.image = new Sensor.ImageMsg();
+            this.pick_pose = new Geometry.PoseMsg();
+            this.place_pose = new Geometry.PoseMsg();
         }
 
-        public PoseEstimationServiceRequest(Sensor.ImageMsg image)
+        public PoseEstimationServiceRequest(Geometry.PoseMsg pick_pose, Geometry.PoseMsg place_pose)
         {
-            this.image = image;
+            this.pick_pose = pick_pose;
+            this.place_pose = place_pose;
         }
 
         public static PoseEstimationServiceRequest Deserialize(MessageDeserializer deserializer) => new PoseEstimationServiceRequest(deserializer);
 
         private PoseEstimationServiceRequest(MessageDeserializer deserializer)
         {
-            this.image = Sensor.ImageMsg.Deserialize(deserializer);
+            this.pick_pose = Geometry.PoseMsg.Deserialize(deserializer);
+            this.place_pose = Geometry.PoseMsg.Deserialize(deserializer);
         }
 
         public override void SerializeTo(MessageSerializer serializer)
         {
-            serializer.Write(this.image);
+            serializer.Write(this.pick_pose);
+            serializer.Write(this.place_pose);
         }
 
         public override string ToString()
         {
             return "PoseEstimationServiceRequest: " +
-            "\nimage: " + image.ToString();
+            "\npick_pose: " + pick_pose.ToString() +
+            "\nplace_pose: " + place_pose.ToString();
         }
 
 #if UNITY_EDITOR
